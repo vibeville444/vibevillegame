@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>VibeVille</title>
     <style>
-        body { margin: 0; overflow: hidden; }
+        body { margin: 0; overflow: hidden; background: #87CEEB; } /* Sky blue for Wii Resort vibe */
         canvas { display: block; }
     </style>
 </head>
@@ -15,79 +15,218 @@
         // Scene setup
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Ground
-        const groundGeo = new THREE.PlaneGeometry(50, 50);
-        const groundMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+        // Ground (bright green grid for Wii Resort vibe)
+        const groundGeo = new THREE.PlaneGeometry(200, 200);
+        const groundMat = new THREE.MeshBasicMaterial({ 
+            color: 0x98FF98, // Light green
+            side: THREE.DoubleSide,
+            wireframe: true // Grid-like for stylized look
+        });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
-        // Central Building
-        const centerGeo = new THREE.BoxGeometry(5, 5, 5);
-        const centerMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        const centerBuilding = new THREE.Mesh(centerGeo, centerMat);
-        centerBuilding.position.y = 2.5;
-        scene.add(centerBuilding);
+        // Central Stage (yellow, circular platform)
+        const stageGeo = new THREE.CircleGeometry(10, 32);
+        const stageMat = new THREE.MeshBasicMaterial({ color: 0xFFFF00, side: THREE.DoubleSide }); // Bright yellow
+        const stage = new THREE.Mesh(stageGeo, stageMat);
+        stage.rotation.x = -Math.PI / 2;
+        stage.position.y = 0.1; // Slightly raised
+        scene.add(stage);
 
-        // 8 Surrounding Buildings
-        const radius = 15;
-        const buildings = [];
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const buildingGeo = new THREE.BoxGeometry(3, 3, 3);
-            const buildingMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            const building = new THREE.Mesh(buildingGeo, buildingMat);
-            building.position.set(Math.cos(angle) * radius, 1.5, Math.sin(angle) * radius);
-            building.userData = { url: `https://example.com/game${i}` };
-            scene.add(building);
-            buildings.push(building);
-        }
-
-        // Avatar
+        // Avatar (red sphere, Wii Mii-like)
         const avatarGeo = new THREE.SphereGeometry(1, 32, 32);
-        const avatarMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const avatarMat = new THREE.MeshBasicMaterial({ color: 0xFF0000 }); // Bright red
         const avatar = new THREE.Mesh(avatarGeo, avatarMat);
         avatar.position.y = 1;
         scene.add(avatar);
 
-        // Camera
-        camera.position.set(0, 10, 20);
+        // Camera setup (overhead, slightly tilted for exploration)
+        camera.position.set(0, 20, 20);
         camera.lookAt(0, 0, 0);
 
-        // Movement
+        // Movement variables
         const keys = {};
+        let isSprinting = false;
+        let lastSpacePress = 0;
+        let isJumping = false;
+        const speed = 0.2;
+        const sprintSpeed = 0.4;
+        const jumpHeight = 5;
+        const gravity = 0.1;
+
+        // Handle keyboard input
         document.addEventListener('keydown', (e) => keys[e.key] = true);
         document.addEventListener('keyup', (e) => keys[e.key] = false);
-        function updateMovement() {
-            const speed = 0.2;
-            if (keys['ArrowUp']) avatar.position.z -= speed;
-            if (keys['ArrowDown']) avatar.position.z += speed;
-            if (keys['ArrowLeft']) avatar.position.x -= speed;
-            if (keys['ArrowRight']) avatar.position.x += speed;
+
+        // Double-tap space for jump, space for sprint
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ') {
+                const now = Date.now();
+                if (now - lastSpacePress < 300 && !isJumping) { // Double-tap within 300ms
+                    isJumping = true;
+                    jump();
+                } else if (!isSprinting) {
+                    isSprinting = true;
+                }
+                lastSpacePress = now;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === ' ') isSprinting = false;
+        });
+
+        function jump() {
+            const jumpInterval = setInterval(() => {
+                if (avatar.position.y < jumpHeight && isJumping) {
+                    avatar.position.y += 0.5;
+                } else {
+                    isJumping = false;
+                    fall();
+                    clearInterval(jumpInterval);
+                }
+            }, 50);
         }
 
-        // Click Handling
+        function fall() {
+            const fallInterval = setInterval(() => {
+                if (avatar.position.y > 1) {
+                    avatar.position.y -= gravity;
+                } else {
+                    avatar.position.y = 1;
+                    clearInterval(fallInterval);
+                }
+            }, 50);
+        }
+
+        // Movement function
+        function updateMovement() {
+            const moveSpeed = isSprinting ? sprintSpeed : speed;
+            if (keys['ArrowUp']) avatar.position.z -= moveSpeed;
+            if (keys['ArrowDown']) avatar.position.z += moveSpeed;
+            if (keys['ArrowLeft']) avatar.position.x -= moveSpeed;
+            if (keys['ArrowRight']) avatar.position.x += moveSpeed;
+        }
+
+        // Buildings (40 unique but cohesive, bright, stylized for Decentraland/Wii Resort)
+        const buildingColors = [0xFF6B6B, 0x4ECDC4, 0x45B7D1, 0x96CEB4, 0xFFEEAD]; // Vibrant palette
+        const buildingPositions = {
+            north: Array.from({ length: 10 }, (_, i) => ({
+                x: -90 + i * 18, y: 5, z: -90 // North side (top of grid)
+            })),
+            east: Array.from({ length: 10 }, (_, i) => ({
+                x: 90, y: 5, z: -90 + i * 18 // East side (right of grid)
+            })),
+            south: Array.from({ length: 10 }, (_, i) => ({
+                x: -90 + i * 18, y: 5, z: 90 // South side (bottom of grid)
+            })),
+            west: Array.from({ length: 10 }, (_, i) => ({
+                x: -90, y: 5, z: -90 + i * 18 // West side (left of grid)
+            }))
+        };
+
+        const buildings = [];
+        const buildingGeometries = [
+            new THREE.BoxGeometry(5, 10, 5), // Basic cube
+            new THREE.CylinderGeometry(3, 3, 10, 32), // Tower
+            new THREE.ConeGeometry(4, 12, 32), // Pointed roof
+            new THREE.DodecahedronGeometry(4), // Unique shape
+            new THREE.TorusGeometry(3, 1, 16, 32) // Ring-like structure
+        ];
+
+        function createUniqueBuilding(position, colorIndex) {
+            const geo = buildingGeometries[Math.floor(Math.random() * buildingGeometries.length)];
+            const mat = new THREE.MeshBasicMaterial({ color: buildingColors[colorIndex % buildingColors.length] });
+            const building = new THREE.Mesh(geo, mat);
+            building.position.set(position.x, position.y, position.z);
+            building.userData = { url: `https://example.com/building${buildings.length}` }; // Placeholder URL
+            scene.add(building);
+            buildings.push(building);
+        }
+
+        // Generate 40 unique buildings
+        Object.values(buildingPositions).forEach(positions => {
+            positions.forEach((pos, i) => createUniqueBuilding(pos, i));
+        });
+
+        // Trees (green, stylized for Wii Resort)
+        const treeGeo = new THREE.ConeGeometry(2, 5, 32);
+        const treeMat = new THREE.MeshBasicMaterial({ color: 0x228B22 }); // Forest green
+        for (let i = 0; i < 20; i++) {
+            const tree = new THREE.Mesh(treeGeo, treeMat);
+            tree.position.set(Math.random() * 180 - 90, 2.5, Math.random() * 180 - 90);
+            scene.add(tree);
+        }
+
+        // Birds (small white spheres, flying randomly)
+        const birdGeo = new THREE.SphereGeometry(0.5, 16, 16);
+        const birdMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF }); // White
+        const birds = [];
+        for (let i = 0; i < 5; i++) {
+            const bird = new THREE.Mesh(birdGeo, birdMat);
+            bird.position.set(Math.random() * 180 - 90, Math.random() * 20 + 5, Math.random() * 180 - 90);
+            scene.add(bird);
+            birds.push(bird);
+        }
+
+        // Blimps/Hot Air Balloons (random, colorful, floating)
+        const balloonGeo = new THREE.SphereGeometry(3, 32, 32);
+        const balloonColors = [0xFF69B4, 0x00CED1, 0xFFA500]; // Pink, turquoise, orange
+        const balloons = [];
+        for (let i = 0; i < 3; i++) {
+            const balloon = new THREE.Mesh(balloonGeo, new THREE.MeshBasicMaterial({ color: balloonColors[i % balloonColors.length] }));
+            balloon.position.set(Math.random() * 180 - 90, Math.random() * 30 + 10, Math.random() * 180 - 90);
+            scene.add(balloon);
+            balloons.push(balloon);
+        }
+
+        // Click Handling (for building portals)
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', async (e) => {
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(buildings);
             if (intersects.length > 0) {
-                const url = intersects[0].object.userData.url;
-                window.location.href = url;
+                const buildingIndex = buildings.indexOf(intersects[0].object);
+                const { data, error } = await supabase
+                    .from('games')
+                    .select('url')
+                    .eq('building_number', buildingIndex)
+                    .single();
+                if (error) console.error('Error fetching game URL:', error);
+                else window.location.href = data.url || `https://example.com/building${buildingIndex}`;
             }
         });
 
-        // Animation Loop
+        // Initialize Supabase (replace with your credentials)
+        const supabase = supabase.createClient('YOUR_SUPABASE_URL', 'YOUR_SUPABASE_ANON_KEY');
+
+        // Animation Loop (including bird and balloon movement)
         function animate() {
             requestAnimationFrame(animate);
             updateMovement();
+
+            // Bird movement (random, gentle floating)
+            birds.forEach(bird => {
+                bird.position.x += (Math.random() - 0.5) * 0.1;
+                bird.position.z += (Math.random() - 0.5) * 0.1;
+                bird.position.y = Math.sin(Date.now() * 0.001 + bird.position.x) * 2 + 10;
+            });
+
+            // Balloon movement (slow, drifting)
+            balloons.forEach(balloon => {
+                balloon.position.x += Math.sin(Date.now() * 0.0005 + balloon.position.x) * 0.05;
+                balloon.position.z += Math.cos(Date.now() * 0.0005 + balloon.position.z) * 0.05;
+                balloon.position.y = Math.sin(Date.now() * 0.0003 + balloon.position.z) * 5 + 20;
+            });
+
             renderer.render(scene, camera);
         }
         animate();
