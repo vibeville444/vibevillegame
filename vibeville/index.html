@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VibeVille</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Ground
+        const groundGeo = new THREE.PlaneGeometry(50, 50);
+        const groundMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // Central Building
+        const centerGeo = new THREE.BoxGeometry(5, 5, 5);
+        const centerMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const centerBuilding = new THREE.Mesh(centerGeo, centerMat);
+        centerBuilding.position.y = 2.5;
+        scene.add(centerBuilding);
+
+        // 8 Surrounding Buildings
+        const radius = 15;
+        const buildings = [];
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const buildingGeo = new THREE.BoxGeometry(3, 3, 3);
+            const buildingMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const building = new THREE.Mesh(buildingGeo, buildingMat);
+            building.position.set(Math.cos(angle) * radius, 1.5, Math.sin(angle) * radius);
+            building.userData = { url: `https://example.com/game${i}` };
+            scene.add(building);
+            buildings.push(building);
+        }
+
+        // Avatar
+        const avatarGeo = new THREE.SphereGeometry(1, 32, 32);
+        const avatarMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const avatar = new THREE.Mesh(avatarGeo, avatarMat);
+        avatar.position.y = 1;
+        scene.add(avatar);
+
+        // Camera
+        camera.position.set(0, 10, 20);
+        camera.lookAt(0, 0, 0);
+
+        // Movement
+        const keys = {};
+        document.addEventListener('keydown', (e) => keys[e.key] = true);
+        document.addEventListener('keyup', (e) => keys[e.key] = false);
+        function updateMovement() {
+            const speed = 0.2;
+            if (keys['ArrowUp']) avatar.position.z -= speed;
+            if (keys['ArrowDown']) avatar.position.z += speed;
+            if (keys['ArrowLeft']) avatar.position.x -= speed;
+            if (keys['ArrowRight']) avatar.position.x += speed;
+        }
+
+        // Click Handling
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        document.addEventListener('click', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(buildings);
+            if (intersects.length > 0) {
+                const url = intersects[0].object.userData.url;
+                window.location.href = url;
+            }
+        });
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            updateMovement();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
